@@ -1,4 +1,4 @@
-# Solution Separation vs. GLR testing
+# Running python scripts corresponding to Chapter 3 of the PhD thesis by BG van Noort. 
 
 Code accompanying the chapter comparing the **solution separation (SS)** test
 with the **generalized likelihood ratio (GLR / `T_q`)** test, in terms of the
