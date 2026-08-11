@@ -1,6 +1,6 @@
 # Python scripts corresponding to Chapter 3 of the PhD thesis by BG van Noort. 
 
-Code accompanying the chapter comparing the **solution separation (SS)** test
+Code supporting the results of the chapter comparing the **solution separation (SS)** test
 with the **generalized likelihood ratio (GLR / `T_q`)** test, in terms of the
 probability of positioning failure `P_F` (integrity risk).
 
