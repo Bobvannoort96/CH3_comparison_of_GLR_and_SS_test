@@ -150,7 +150,7 @@ Each `Data/` folder holds comma-delimited text files:
 the `nr_sims` replications, **not** the standard error of the mean. The
 plotting scripts convert it with `bool_convert_sigma = True`, which divides by
 `sqrt(nr_sims)`. If you change `nr_sims` in the simulation, change it in the
-plotting scripts too — they do not read it from disk.
+plotting scripts too, they do not read it automatically from the files.
 
 ### 1.4 Plotting stage
 
@@ -160,8 +160,8 @@ Four scripts, all reading the layout above:
 |---|---|
 | `plot_IR_binary_detection_only.py` | One wide figure with the three `Ca` geometries side by side (SS top row, GLR bottom row), plus zoomed and flattened difference panels |
 | `plot_IR_binary_detection_and_ident.py` | Same, for the detection-and-identification case |
-| `plot_IR_binary_det_only_per_ca.py` | One 2×2 figure *per* `Ca`: left column the mean `P_F`, right column the relative simulation std `sigma / P_F`; SS on top, GLR below |
-| `plot_IR_binary_det_and_ident_per_ca.py` | Same, for detection and identification |
+| `plot_IR_binary_det_only_per_ca.py` | One 2×2 figure *per* `Ca`: left column the mean `P_F`, right column the relative simulation std `sigma / P_F`; SS on top, GLR below (not provided in the chapter) |
+| `plot_IR_binary_det_and_ident_per_ca.py` | Same, for detection and identification (not provided in the chapter) |
 
 The `per_ca` scripts rebuild the geometry and the thresholds internally (so the
 `T_q` contour lines can be overlaid) and then load the simulated grids. Both
@@ -209,25 +209,25 @@ chapter uses both:
 * **`Code_1D_analysis/` — bias along a line.** For `q = 1` the bias is `b`; for
   `q = 2` it is `[b, b]`. A single scalar `b` therefore parameterizes every
   hypothesis, which is what makes the `P_F` vs. `b` curves comparable across
-  hypotheses. **This campaign produces the two chapter figures.**
+  hypotheses. **This produces the two chapter figures.**
 * **`Code/` — bias over a 2-D grid.** For `q = 2` the full `(b1, b2)` plane is
   swept, so the maximum of `P_F` is found over the whole plane rather than along
-  the diagonal. **This campaign produces the max-`P_F` numbers in the table** at
+  the diagonal. **This produces the max-`PPF` numbers in the table** at
   the end of the GNSS section.
 
-Each campaign is further split into `det_only/` and `det_and_ident/`:
+Each of these separate programs further splits the detection only (`det_only/`) and detection and identification (`det_and_ident/`) cases:
 
-* **Detection only.** A failure occurs when the *global* least-squares estimate
-  leaves the safety region `Bx` **and** the test fails to reject `H0`. The
-  probability that the estimate is unsafe is computed **analytically** — under
+* **Detection only.** A failure occurs when the estimator lies outside of the safety region `Bx` 
+   **and** the test fails to reject `H0`. The
+  probability that the estimator is unsafe is computed **analytically** — under
   `Hi(b)` the UP-bias of the global estimator is deterministic — so only the
-  detection power `gamma` is Monte-Carlo'd. `AL_Bx` therefore enters only through
+  detection power `gamma` is computed by simulation. `AL_Bx` therefore enters only through
   closed-form expressions, and one Monte Carlo run serves all three alert limits.
 * **Detection and identification (DIA).** After rejection, the hypothesis with
   the largest statistic is identified and the corresponding *adapted* estimator
-  is used. A failure is scored empirically by counting samples for which the
+  is used. To compute the PPF, we empirically count the samples for which the
   identified estimate falls outside `Bx`. `AL_Bx` enters through the counting,
-  done for all three limits in one pass by broadcasting.
+  done for all three alert limits.
 
 ### 2.2 Simulation scripts and their routines
 
@@ -273,10 +273,11 @@ is what makes the comparison fair:
 In all three, `psat_GPS = 1e-3` and `psat_GAL = 3e-3`. Individual levels are
 `alpha_i_SS = alpha / k` and `alpha_i_Tq = alpha * factor_convert_alpha / k`.
 
-### 2.4 Running on Snellius
+### 2.4 Running on HPC (we used Snellius)
 
 Each simulation directory contains the same pair of shell scripts, differing
-only in the Python file they invoke and in `--cpus-per-task`:
+only in the Python file they invoke and in `--cpus-per-task`. 
+These shall be modified according to the user's liking and the available HPC:
 
 * **`submit_GNSS_ex_per_hypt.bash`** — the SLURM job for *one* hypothesis. It
   loads the `2023` toolchain (`numba`, `matplotlib`, `SciPy-bundle`), pins every
@@ -297,7 +298,7 @@ bash submit_jobs.sh
 
 The `python` line inside `submit_GNSS_ex_per_hypt.bash` is where `--N-sims`,
 `--setup-nr`, and any grid overrides are set. Edit it before submitting. To run
-a single hypothesis directly, without SLURM:
+a single hypothesis (`H0`) directly, without SLURM:
 
 ```bash
 python ./main_code/gnss_simulate_hypothesis_det_only_line.py \
@@ -321,7 +322,7 @@ Useful arguments (defaults in brackets):
 | `--b-min --b-max --b-step` | `0.01 20.0 0.5` | Line sweep (`Code_1D_analysis`), 41 points |
 | `--q1-b-*`, `--q2-b1-*`, `--q2-b2-*`, `--b-step` | `b1 ∈ [-20, 20]`, `b2 ∈ [0.01, 20]`, step `0.5` | Grid sweep (`Code`) |
 
-A full campaign is 67 jobs at roughly 45 minutes wall-clock each.
+
 
 ### 2.5 Output layout
 
@@ -338,7 +339,7 @@ Files are comma-delimited:
 
 | File | Contents |
 |---|---|
-| `IR_PH0_SS.txt`, `IR_PH0_Tq.txt` | `P_F` given `H0`, averaged over `N_sims` |
+| `IR_PH0_SS.txt`, `IR_PH0_Tq.txt` | `PPF` given `H0`, averaged over `N_sims` |
 | `std_IR_PH0_SS.txt`, `std_IR_PH0_Tq.txt` | Standard error of that mean |
 | `alpha_obs_SS.txt`, `alpha_obs_Tq.txt` | Observed false-alarm rate |
 | `std_alpha_obs_SS.txt`, `std_alpha_obs_Tq.txt` | Standard error of that mean |
@@ -347,15 +348,15 @@ Files are comma-delimited:
 
 | File | Contents |
 |---|---|
-| `IR_SS.txt`, `IR_Tq.txt` | `P_F` given `Hi`, over the bias sweep |
+| `IR_SS.txt`, `IR_Tq.txt` | `PPF` given `Hi`, over the bias sweep |
 | `std_IR_SS.txt`, `std_IR_Tq.txt` | Standard error of the mean |
-| `gamma_SS.txt`, `gamma_Tq.txt` | Detection power (**detection-only campaigns only**) |
+| `gamma_SS.txt`, `gamma_Tq.txt` | Detection power (**detection-only campaigns only as they are the same for detection-identification**) |
 | `std_gamma_SS.txt`, `std_gamma_Tq.txt` | Standard error of the mean |
 | `b_values.txt` | Bias axis, for a line sweep or a `q = 1` grid hypothesis |
 | `b1_grid.txt`, `b2_grid.txt` | Bias axes for a `q = 2` grid hypothesis (`meshgrid(..., indexing='ij')`) |
 
 `gamma` does not depend on `AL_Bx`, but it is duplicated into every `AL_*`
-folder so that each leaf is self-contained.
+folder so that each leaf is self-contained. Note that detection power is the same for both scenarios: detection-only and detection-identification.
 
 ### 2.6 Post-processing
 
@@ -371,25 +372,25 @@ N_sims = 10
 
 **`plot_results_GNSS_ex_CH5_from_Snellius_line.py`** — reads the
 `Code_1D_analysis/` output and produces the chapter figures. For each alert
-limit it draws one figure of `P_F` against `b`, containing:
+limit it draws one figure of `PPF` against `b`, containing:
 
-* blue — total `P_F`, solid for GLR and dashed for SS, with a ±1σ band;
-* green — the contribution of `H0` alone, `(P_F | H0) · P(H0)`;
-* red — the maximum `P_F` over the bias sweep.
+* blue — total `PPF`, solid for GLR and dashed for SS, with a ±1σ band;
+* green — the contribution of `H0` alone, `(PPF | H0) · P(H0)`;
+* red — the maximum `PPF` over the bias sweep.
 
 Figures are written as `PF_vs_b.{pdf,png}` under
 `Figures/gnss_example/<scenario_type>/setup <setup_nr>/AL=<AL> m/`.
 
 **`plot_results_GNSS_ex_CH5_from_Snellius.py`** — reads the `Code/` output and
-prints the max-`P_F` table for both tests across the three alert limits. It also
-draws the `(b1, b2)` heat maps for the last `q = 2` hypothesis it loads.
+prints the max-`PPF` table for both tests across the three alert limits. It also
+draws the `(b1, b2)` heat maps for the last `q = 2` hypothesis it loads (not used in chapter).
 
 Both scripts assemble the totals the same way. The stored quantities are
 **conditional on the hypothesis**, so each is multiplied by its prior exactly
 once:
 
 ```
-P_F(b) = P(H0) · (P_F | H0)  +  Σ_i P(Hi) · (P_F | Hi)(b)
+PPF(b) = P(H0) · (PPF | H0)  +  Σ_i P(Hi) · (PPF | Hi)(b)
 ```
 
 with the standard errors combined in quadrature, the hypothesis streams being
@@ -415,28 +416,24 @@ Locally:
 
 ## 3. Conventions worth knowing
 
-* **Everything on disk is conditional on its hypothesis.** No prior probability
-  is baked into any saved `P_F` value. The priors are applied once, in the
-  post-processing scripts. This holds for the standard deviations too.
+* **Every computed PPF is conditional on its hypothesis.** No prior probability
+  is present into these computations for any saved `PPF` value. The priors are applied once, in the
+  post-processing scripts; this holds for the standard deviations too. This allows the recomputation of a similar geometry with other priors.
 * **Normalized statistics.** Both test statistics are divided by their own
-  threshold before being saved or compared, so the rejection rule is uniformly
+  threshold before being compared, so the rejection rule is uniformly
   `statistic > 1`.
 * **Uncertainty is the standard error of the mean.** All `std_*.txt` files in
   the GNSS example are `std(..., ddof=0) / sqrt(N_sims)`. The binary example
   stores the raw replication standard deviation instead and divides at plot
   time — a deliberate difference, but one to keep in mind when comparing the two.
 * **`AL_Bx` handling.** In detection-only it enters only through closed-form
-  expressions; in DIA through empirical counting. Either way, all three alert
-  limits come out of a single Monte Carlo campaign.
-* **`Prob_H` is applied exactly once.** When editing the post-processing, check
-  whether a variable has already been scaled by its prior before multiplying
-  again. This is the single easiest thing to get wrong.
-
+  expressions; in DIA through simulating the probability that the used estimator is outside the safety region. Either way, all three alert
+  limits use the same realizations of the Monte Carlo samples.
 ---
 
 ## 4. Paths to edit before running
 
-Every script uses absolute Windows or Snellius paths from the original machine.
+Every script uses absolute Windows or HPC paths from the original machine.
 Update these first:
 
 | Script(s) | Variable |
@@ -452,10 +449,7 @@ The GNSS plot scripts expect an extra layer relative to the cluster output —
 that when copying, or adjust `topdir`.
 
 Several scripts also reference a personal matplotlib style file
-(`mystyle.mplstyle`), which is not part of this repository. Those lines are
-commented out in the binary example; comment them out in the GNSS simulators as
-well, or supply your own style file.
-
+(`mystyle.mplstyle`), which is not part of this repository. Comment these lines out when using the scripts. 
 ---
 
 ## 5. Notes and known gaps
@@ -463,17 +457,9 @@ well, or supply your own style file.
 * The top-level `Code/det_only/` and `Code/det_and_ident/` folders contain
   submit scripts that point at `./main_code/...` paths one level above where the
   simulators actually live. They are earlier wrappers kept for reference; use the
-  scripts inside `with_sim_var/` instead.
-* `IR_SS_vs_Tq_Detection_and_identification.txt` is a Python script saved with a
-  `.txt` extension. It computes the detection-and-identification risk for the
-  binary example but contains no `savetxt` calls — it plots inline only. The data
-  actually read by `plot_IR_binary_detection_and_ident.py` and
-  `plot_IR_binary_det_and_ident_per_ca.py` (from the `Det+Ident/Data/` folders)
-  was produced by a saving variant of this script that is not included here.
-  Rename the file to `.py` and add the corresponding `savetxt` block if the
-  detection-and-identification data needs to be regenerated from scratch.
+  scripts inside `with_sim_var/` instead as these also compute the standard deviations of the computed mean quantities.
 * The `--geom-seed` argument is accepted by all GNSS simulators but the
-  satellite subset is hard-coded, so it currently has no effect.
+  satellite subset is hard-coded, so it currently has no effect. One can adjust this in the scripts. 
 
 ---
 
