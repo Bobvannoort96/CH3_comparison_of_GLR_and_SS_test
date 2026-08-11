@@ -1,4 +1,4 @@
-# Solution Separation vs. GLR testing — reproduction code
+# Solution Separation vs. GLR testing
 
 Code accompanying the chapter comparing the **solution separation (SS)** test
 with the **generalized likelihood ratio (GLR / `T_q`)** test, in terms of the
